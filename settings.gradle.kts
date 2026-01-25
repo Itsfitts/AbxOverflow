@@ -26,9 +26,9 @@ include(":app")
 include(":droppedapk")
 
 // Include reflection explorer using alias, so its hidden-api submodule is accessible to it
-include(":library")
-include(":library:hidden-api")
+// include(":library")
+// include(":library:hidden-api")
 
-project(":library").projectDir = file("reflection-explorer/library")
-project(":library:hidden-api").projectDir = file("reflection-explorer/library/hidden-api")
+// project(":library").projectDir = file("reflection-explorer/library")
+// project(":library:hidden-api").projectDir = file("reflection-explorer/library/hidden-api")
 include(":droppedapk:hidden-api")
