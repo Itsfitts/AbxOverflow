@@ -19,13 +19,108 @@ android {
     packaging.jniLibs.useLegacyPackaging = true
 
     defaultConfig {
-        applicationId = "com.example.abxoverflow.droppedapk.system"
-        minSdk = 31
+        // base application id; product flavors append suffixes
+        applicationId = "com.example.abxoverflow.droppedapk"
+        minSdk = 29
         targetSdk = 33
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Derive provider authority from the final applicationId at manifest merge time
+        manifestPlaceholders["PROVIDER_AUTHORITY"] = $$"${applicationId}.provider.PrivilegedDocumentsProvider"
+    }
+
+    // New: flavor dimension + product flavors for different shared UIDs
+    flavorDimensions += "sharedUid"
+    productFlavors {
+        fun addShared(name: String, default: Boolean = false) {
+            val simpleName = if (name.startsWith("android.uid."))
+                name.removePrefix("android.uid.").replaceFirstChar(Char::uppercaseChar)
+            else
+                name
+
+            create(simpleName.replace('.', '_')) {
+                isDefault = default
+                dimension = "sharedUid"
+                applicationIdSuffix = ".${simpleName.replace('.','_').lowercase()}"
+                manifestPlaceholders["SHARED_USER_ID"] = name
+                manifestPlaceholders["APP_LABEL"] = simpleName
+                manifestPlaceholders["HAS_SYSTEM_SERVER"] = if (name == "android.uid.system") "true" else "false"
+                manifestPlaceholders["IS_SHELL"] = if (name == "android.uid.shell") "true" else "false"
+
+                // TODO
+                manifestPlaceholders["DEFAULT_PROCESS"] = if (name == "android.uid.systemui") "com.android.systemui"
+                else if (name == "android.uid.shell") "com.android.shell"
+                else if (name == "android.uid.system") "system"
+                else if (name == "android.uid.phone") "com.android.phone"
+                else if (name == "android.uid.cmhservice") "com.samsung.cmh"
+                else if (name.contains(".uid.")) {
+                    // For other Android system UIDs, you need to determine an existing process name that runs under that shared UID.
+                    // Use the package name for a system app that runs under that shared UID in that case.
+                    project.logger.warn("Shared UID '$name' has no known default process assigned")
+                    name
+                }
+                else name
+
+                manifestPlaceholders["SHIZUKU_PROCESS"] = if (name == "android.uid.system") "com.android.settings"
+                else "@null"
+
+            }
+        }
+
+        // Android system shared UIDs
+        addShared("android.uid.system", true) // 1000
+        addShared("android.uid.phone") // 1001
+        addShared("android.uid.bluetooth") // 1002
+        addShared("android.uid.nfc") // 1027
+        addShared("android.uid.se") // 1068
+        addShared("android.uid.networkstack") // 1073
+        addShared("android.uid.uwb") // 1083
+        addShared("android.uid.shell") // 2000
+        // Vendor shared UIDs (Samsung)
+        addShared("android.uid.sendhelpmessage") // 5003
+        addShared("android.uid.cmhservice") // 5004
+        addShared("android.uid.bcmgr") // 5006
+        addShared("android.uid.samsungcloud") // 5009
+        addShared("android.uid.intelligenceservice") // 5010 & 10057
+        addShared("android.uid.nsflp") // 5013
+        addShared("android.uid.advmodem") // 5017
+        addShared("android.uid.ipsgeofence") // 5022
+        addShared("android.uid.networkdiagnostic") // 5023
+        addShared("android.uid.mdxkit") // 5025
+        addShared("android.uid.sharelive") // 5026
+        addShared("android.uid.knoxcore") // 5250
+        addShared("android.uid.spass") // 5278
+        addShared("android.uid.spay") // 5279
+        // User shared UIDs (10000+)
+        addShared("android.uid.systemui") // 10048
+        addShared("android.uid.shared") // 10057
+        addShared("com.sec.android.mimage.avatarstickers") // 10063
+        addShared("android.media") // 10068
+        addShared("com.samsung.android.app.cameraspecialshootingmodeviewer") // 10071
+        addShared("com.sec.android.mimage.uid.photoretouching") // 10109
+        addShared("com.samsung.svoice") // 10113
+        addShared("android.uid.calendar") // 10114
+        addShared("com.samsung.android.uid.dialer") // 10122
+        addShared("com.samsung.android.uid.video") // 10132
+        addShared("android.uid.smds") // 10141
+        addShared("com.samsung.android.marvin.feedback") // 10152
+        addShared("android.uid.ve") // 10161
+        addShared("android.uid.asf_awareshare") // 10200
+        addShared("android.uid.asf_mediashare") // 10202
+        addShared("android.uid.honeyboard") // 10254
+        // WARNING: This completely breaks GMS: addShared("com.google.uid.shared") // 10268
+        addShared("com.google.android.calendar.uid.shared") // 10282
+        addShared("com.android.cts.ctsshim") // 10312
+        addShared("com.samsung.accessory.wmanager") // 10327
+    }
+
+    buildFeatures {
+        buildConfig = true
+        viewBinding = true
+        aidl = true
     }
 
     buildTypes {
@@ -39,17 +134,23 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 }
 
 dependencies {
-    implementation("com.github.yinyinnie.stetho:stetho:1.0.0")
-    implementation("com.github.yinyinnie.stetho:stetho-js-rhino:1.0.0")
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
+    implementation(libs.androidx.activity)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.recyclerview)
+    implementation(libs.ezxhelper.core)
+    implementation(libs.androidx.preferences)
+
     implementation(project(":library"))
 
     implementation(libs.refine.runtime)
     compileOnly(project(":droppedapk:hidden-api"))
 }
-

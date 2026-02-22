@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.preference.PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <androidx.preference.PreferenceCategory
+        android:title="@string/pref_category_actions_title">
+
+        <androidx.preference.Preference
+            android:key="@string/pref_key_shell_run"
+            android:icon="@drawable/ic_terminal"
+            android:title="@string/shell_run_title"
+            android:summary="@string/shell_run_subtitle" />
+
+        <androidx.preference.Preference
+            android:key="@string/pref_key_reflection_explorer"
+            android:icon="@drawable/ic_manage_search"
+            android:title="@string/reflection_explorer_title"
+            android:summary="@string/reflection_explorer_subtitle" />
+
+        <androidx.preference.Preference
+            android:key="@string/pref_key_shizuku"
+            android:icon="@drawable/ic_rocket_launch"
+            android:title="@string/shizuku_title"
+            android:summary="@string/shizuku_subtitle" />
+
+        <androidx.preference.Preference
+            android:key="@string/pref_key_switch_process"
+            android:icon="@drawable/ic_swap_horiz"
+            android:title="@string/switch_process_title"
+            android:summary="@string/switch_process_subtitle" />
+
+        <androidx.preference.Preference
+            android:key="@string/pref_key_app_data_transfer"
+            android:icon="@drawable/ic_drive_file_move"
+            android:title="@string/app_data_transfer_title"
+            android:summary="@string/app_data_transfer_subtitle" />
+
+    </androidx.preference.PreferenceCategory>
+
+    <androidx.preference.PreferenceCategory
+        android:title="@string/pref_category_mods_title">
+
+        <androidx.preference.Preference
+            android:key="@string/pref_key_debug_app_list"
+            android:icon="@drawable/ic_bug_report"
+            android:title="@string/debug_app_list_title"
+            android:summary="@string/debug_app_list_subtitle" />
+
+        <androidx.preference.Preference
+            android:key="@string/pref_key_cert_pinning"
+            android:icon="@drawable/ic_wifi_4_bar_lock"
+            android:title="@string/cert_pinning_title"
+            android:summary="@string/cert_pinning_subtitle" />
+
+        <androidx.preference.Preference
+            android:key="@string/pref_key_install_source"
+            android:icon="@drawable/ic_shop"
+            android:title="@string/install_source_title"
+            android:summary="@string/install_source_subtitle" />
+
+        <androidx.preference.Preference
+            android:key="@string/pref_key_inject_shared_uid_keyset"
+            android:icon="@drawable/ic_key"
+            android:title="@string/inject_shared_uid_keyset_title"
+            android:summary="@string/inject_shared_uid_keyset_subtitle" />
+
+        <com.example.abxoverflow.droppedapk.preference.MaterialSwitchPreference
+            android:key="@string/pref_key_internal_dex"
+            android:icon="@drawable/ic_cast"
+            android:title="@string/internal_dex_screen_title"
+            android:summary="@string/internal_dex_screen_subtitle" />
+
+        <com.example.abxoverflow.droppedapk.preference.MaterialSwitchPreference
+            android:key="@string/pref_key_multiuser"
+            android:icon="@drawable/ic_supervisor_account"
+            android:title="@string/multiuser_title"
+            android:summary="@string/multiuser_subtitle" />
+
+        <com.example.abxoverflow.droppedapk.preference.MaterialSwitchPreference
+            android:key="@string/pref_key_documents_provider"
+            android:icon="@drawable/ic_folder_supervised"
+            android:title="@string/documents_provider_title"
+            android:summary="@string/documents_provider_subtitle" />
+
+        <com.example.abxoverflow.droppedapk.preference.MaterialSwitchPreference
+            android:key="@string/pref_key_shizuku_autostart"
+            android:icon="@drawable/ic_rocket_launch"
+            android:title="@string/shizuku_autostart_title"
+            android:summary="@string/shizuku_autostart_subtitle" />
+
+    </androidx.preference.PreferenceCategory>
+
+    <androidx.preference.PreferenceCategory
+        android:title="@string/pref_category_info_title">
+
+        <androidx.preference.Preference
+            android:key="@string/pref_key_info"
+            android:selectable="false" />
+
+        <androidx.preference.Preference
+            android:key="@string/pref_key_id_info" />
+
+    </androidx.preference.PreferenceCategory>
+
+</androidx.preference.PreferenceScreen>

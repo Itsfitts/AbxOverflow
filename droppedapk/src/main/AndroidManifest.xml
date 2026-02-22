@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:sharedUserId="android.uid.system"
+    android:sharedUserId="${SHARED_USER_ID}"
     tools:ignore="Deprecated">
 
+    <uses-permission android:name="android.permission.DUMP"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="PackageVisibilityPolicy,QueryAllPackagesPermission" />
 
@@ -12,29 +14,77 @@
     <!-- Set a system app with uid 1000 like "com.sec.android.diagmonagent" to run with system_app SE context with access to sdcard and laxer executable permissions -->
     <application
         android:allowBackup="true"
+        android:name=".InjectedApplication"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:process="system"
+        android:label="${APP_LABEL}"
+        android:theme="@style/Theme.DroppedApk"
+        android:process="${DEFAULT_PROCESS}"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true">
         <activity
             android:name=".MainActivity"
+            android:label="${APP_LABEL}"
+            android:windowSoftInputMode="adjustResize"
             android:exported="true"
-            android:showWhenLocked="true">
+            tools:ignore="RedundantLabel">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="me.timschneeberger.droppedapk.MAIN_INJECTED" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!-- Activity running in the system process able to switch processes -->
+        <activity
+            android:name=".SystemProcessTrampolineActivity"
+            android:process="system"
+            android:enabled="${HAS_SYSTEM_SERVER}"
+            android:exported="true"
+            android:systemUserOnly="false"
+            android:theme="@style/Theme.Transparent"
+            android:showWhenLocked="true"
+            tools:ignore="UnusedAttribute">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 
         <receiver
-            android:name=".LaunchReceiver"
+            android:name=".receiver.SystemServerBootReceiver"
+            android:process="system"
+            android:enabled="${HAS_SYSTEM_SERVER}"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name=".receiver.SystemAppBootReceiver"
+            android:process="${SHIZUKU_PROCESS}"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <provider
+            android:authorities="${PROVIDER_AUTHORITY}"
+            android:name="com.example.abxoverflow.droppedapk.utils.PrivilegedDocumentsProvider"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </provider>
     </application>
 
 </manifest>
