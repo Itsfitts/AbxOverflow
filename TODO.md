@@ -5,8 +5,7 @@
   * /sys/devices/system/cpu/cpu0/cpufreq/scaling_{min|max}_freq
   * /sys/kernel/gpu/gpu_{min_clock|max_clock|governor}
   * /sys/kernel/ems/emstune/req_mode
-  ```
-      >> normal mode (idx=0)
+      >>   normal mode (idx=0)
       power-scenario mode (idx=1)
       performance mode (idx=2)
       game mode (idx=3)
@@ -20,30 +19,28 @@
       gameSDK sub mode 1 mode (idx=11)
       gameSDK sub mode 2 mode (idx=12)
       gameSDK sub mode 3 mode (idx=13)
-  ```
-
+ 
+    /sys/devices/system/cpu/cpu1/online
+    /sys/devices/system/cpu/cpu2/online
+    /sys/devices/system/cpu/cpu3/online
+    /sys/devices/system/cpu/cpu4/online
+    /sys/devices/system/cpu/cpu5/online
+    /sys/devices/system/cpu/cpu6/online
+    /sys/devices/system/cpu/cpu7/online
+    /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
+    /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq
+    /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
+    /sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq
+    /sys/devices/system/cpu/cpufreq/policy7/scaling_max_freq
+    /sys/devices/system/cpu/cpufreq/policy7/scaling_min_freq
   
-      2 /sys/devices/system/cpu/cpu1/online
-      2 /sys/devices/system/cpu/cpu2/online
-      2 /sys/devices/system/cpu/cpu3/online
-      2 /sys/devices/system/cpu/cpu4/online
-      2 /sys/devices/system/cpu/cpu5/online
-      2 /sys/devices/system/cpu/cpu6/online
-      2 /sys/devices/system/cpu/cpu7/online
-      2 /sys/devices/system/cpu/cpufreq/policy0/scaling_max_freq
-      2 /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq
-      2 /sys/devices/system/cpu/cpufreq/policy4/scaling_max_freq
-      2 /sys/devices/system/cpu/cpufreq/policy4/scaling_min_freq
-      2 /sys/devices/system/cpu/cpufreq/policy7/scaling_max_freq
-      2 /sys/devices/system/cpu/cpufreq/policy7/scaling_min_freq
-
-    # EMS interfaces
-    chown system system /sys/kernel/ems/emstune/req_mode
-    chown system system /sys/kernel/ems/emstune/req_cam_sub_mode
-    chown system system /sys/kernel/ems/emstune/req_gsdk_sub_mode
-    chown system system /sys/kernel/ems/emstune/req_mode_level
-    chown system system /sys/kernel/ems/emstune/aio_tuner
-    chown system system /sys/kernel/ems/ecs/req_cpus
+    ### EMS interfaces
+    /sys/kernel/ems/emstune/req_mode
+    /sys/kernel/ems/emstune/req_cam_sub_mode
+    /sys/kernel/ems/emstune/req_gsdk_sub_mode
+    /sys/kernel/ems/emstune/req_mode_level
+    /sys/kernel/ems/emstune/aio_tuner
+    /sys/kernel/ems/ecs/req_cpus
 
 ## Debuggable build override
 * Override signatures: https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base/core/java/android/util/apk/ApkSignatureVerifier.java;l=101;drc=61197364367c9e404c7da6900658f1b16c42d0da
@@ -66,7 +63,6 @@ https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base
 
 
 ## Other ideas
-* Add UI for system-wide permission check skipping
 * Add Android ID edit
 * Add Device config edits 
 * intercept service binders: https://github.com/Chainfire/injectvm-binderjack

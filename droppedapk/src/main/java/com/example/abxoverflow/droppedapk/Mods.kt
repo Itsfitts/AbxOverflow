@@ -9,6 +9,7 @@ import android.os.Parcel
 import android.os.ServiceManager
 import android.os.SystemProperties
 import android.util.Log
+import com.example.abxoverflow.droppedapk.utils.injectedPreferences
 import com.example.abxoverflow.droppedapk.utils.readToString
 import com.example.abxoverflow.droppedapk.utils.toast
 import me.timschneeberger.reflectionexplorer.utils.reflection.setField
@@ -21,6 +22,8 @@ import java.util.function.BiFunction
 @SuppressLint("PrivateApi")
 object Mods {
     private const val TAG = "DroppedAPK_Mods"
+    private var pkgWhitelist = emptyList<String>()
+    private var uidWhitelist = emptyList<Int>()
 
     fun runAllSystemServer() {
         enablePermissionManagerDelegate()
@@ -64,6 +67,20 @@ object Mods {
         }
     }
 
+    fun applyPermissionWhitelist() {
+        pkgWhitelist = injectedPreferences.getStringSet("permission_pkg_whitelist", emptySet())?.let {
+            listOf("com.android.shell", "moe.shizuku.privileged.api") + it
+        } ?: emptyList()
+        uidWhitelist = injectedPreferences.getStringSet("permission_uid_whitelist", emptySet())?.let {
+            it.mapNotNull(String::toIntOrNull) + listOf(
+                1000,
+                1001 // Required for Shizuku on 1001
+            )
+        } ?: emptyList()
+
+        Log.i(TAG, "Updated permission whitelist: pkg=$pkgWhitelist, uid=$uidWhitelist")
+    }
+
     fun enablePermissionManagerDelegate() {
         try {
             val serviceImpl = ServiceManager.getService("permissionmgr")
@@ -78,15 +95,14 @@ object Mods {
             val delegateCls = Class.forName(innerBinaryName, false, svcLoader)
             Log.i(TAG, "Found CheckPermissionDelegate via service classloader: " + delegateCls.getName())
 
+            applyPermissionWhitelist()
+
             var delegateInstance: Any? = null
             if (delegateCls.isInterface) {
                 delegateInstance = Proxy.newProxyInstance(
                     svcLoader, arrayOf<Class<*>?>(delegateCls)
                 ) { proxy: Any?, method: Method?, args: Array<Any?>? ->
-                    if (method!!.name == "checkPermission" && !(args!![0] as String).let {
-                            it != "com.android.shell" && it != "moe.shizuku.privileged.api"
-                        }
-                    ) {
+                    if (method!!.name == "checkPermission" && !pkgWhitelist.contains(args!![0] as String)) {
                         // Forward to TriFunction.apply(Object, Object, Integer)
                         // -> Default code path for other apps
                         val triCls =
@@ -104,14 +120,8 @@ object Mods {
                             args[2] as Int?
                         ) as Int)
                     }
-                    val uidWhitelist: MutableList<Int?> = ArrayList()
-                    uidWhitelist.add(1000) // TODO
-                    uidWhitelist.add(1001) // Required for Shizuku on 1001
 
-                    if (method.name == "checkUidPermission" && !uidWhitelist.contains(
-                            args!![0] as Int
-                        )
-                    ) {
+                    if (method.name == "checkUidPermission" && !uidWhitelist.contains(args!![0] as Int)) {
                         // Forward to BiFunction.apply(Object, Object)
                         // -> Default code path for other apps
                         @Suppress("UNCHECKED_CAST")
@@ -121,10 +131,10 @@ object Mods {
                         )
                     }
 
-                    /* Log.i(
+                    Log.i(
                          TAG,
                          method.name + "(" + (args?.contentToString() ?: "") + ") called"
-                     )*/
+                     )
 
                     val rt = method.returnType
                     if (rt == Boolean::class.javaPrimitiveType) return@newProxyInstance true

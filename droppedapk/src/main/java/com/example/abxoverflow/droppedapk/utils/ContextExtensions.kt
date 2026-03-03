@@ -2,8 +2,11 @@
 
 package com.example.abxoverflow.droppedapk.utils
 
+import android.app.ActivityThread
+import android.app.Application
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.SharedPreferences
 import android.text.Editable
 import android.text.InputType
 import android.view.Gravity
@@ -15,10 +18,15 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AlertDialog
+import com.example.abxoverflow.droppedapk.BuildConfig
 import com.example.abxoverflow.droppedapk.R
 import com.example.abxoverflow.droppedapk.databinding.DialogTextinputBinding
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import io.github.kyuubiran.ezxhelper.core.finder.MethodFinder.`-Static`.methodFinder
+import io.github.kyuubiran.ezxhelper.core.helper.ObjectHelper.`-Static`.objectHelper
+import me.timschneeberger.reflectionexplorer.utils.cast
 import me.timschneeberger.reflectionexplorer.utils.dpToPx
+import java.io.File
 
 fun Context.createProgressDialog(message: String): AlertDialog {
     val container = LinearLayout(this).apply {
@@ -158,3 +166,27 @@ fun Context.unwrapContext(): Context {
     return context
 }
 
+/**
+ * Gets the primary device-encryption backed context of the application, which was used to initialize the ActivityThread.
+ */
+val primaryDeContext: Context get() {
+    val currentActivityThread = ActivityThread.currentActivityThread()
+        ?: throw IllegalStateException("ActivityThread.currentActivityThread() returned null")
+
+    return currentActivityThread
+        .objectHelper()
+        .getObject("mAllApplications")!!
+        .cast<List<Application>>()
+        .first { it.packageName != BuildConfig.APPLICATION_ID }
+        .createDeviceProtectedStorageContext()
+}
+
+val injectedPreferences: SharedPreferences get() = if(primaryDeContext.packageName == "android")
+    // Use direct constructor with File parameter
+    Context::class.java.methodFinder()
+        .filterByName("getSharedPreferences")
+        .filterByParamTypes(File::class.java, Int::class.javaPrimitiveType)
+        .first()
+        .invoke(primaryDeContext, File("/data/system/injected_app_prefs.xml"), Context.MODE_PRIVATE) as SharedPreferences
+else
+    primaryDeContext.getSharedPreferences("injected_app_prefs", Context.MODE_PRIVATE)

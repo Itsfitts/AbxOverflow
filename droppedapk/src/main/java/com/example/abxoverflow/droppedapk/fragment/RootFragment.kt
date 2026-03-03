@@ -13,6 +13,7 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.core.view.MenuProvider
 import androidx.lifecycle.Lifecycle
@@ -34,12 +35,14 @@ import com.example.abxoverflow.droppedapk.utils.createProgressDialog
 import com.example.abxoverflow.droppedapk.utils.currentProcessName
 import com.example.abxoverflow.droppedapk.utils.executeShell
 import com.example.abxoverflow.droppedapk.utils.executeShellCatching
+import com.example.abxoverflow.droppedapk.utils.injectedPreferences
 import com.example.abxoverflow.droppedapk.utils.isSamsungDevice
 import com.example.abxoverflow.droppedapk.utils.isSystemServer
 import com.example.abxoverflow.droppedapk.utils.packageSeInfo
 import com.example.abxoverflow.droppedapk.utils.seInfo
 import com.example.abxoverflow.droppedapk.utils.showAlert
 import com.example.abxoverflow.droppedapk.utils.showConfirmDialog
+import com.example.abxoverflow.droppedapk.utils.showInputAlert
 import com.example.abxoverflow.droppedapk.utils.toast
 import me.timschneeberger.reflectionexplorer.ReflectionExplorer
 import me.timschneeberger.reflectionexplorer.ReflectionExplorer.launch
@@ -63,6 +66,9 @@ class RootFragment : BasePreferenceFragment() {
     private val documentsProviderPref: MaterialSwitchPreference by lazy { findPreference(getString(R.string.pref_key_documents_provider))!! }
     private val shizukuAutostartPref: MaterialSwitchPreference by lazy { findPreference(getString(R.string.pref_key_shizuku_autostart))!! }
     private val spoofDebuggablePref: MaterialSwitchPreference by lazy { findPreference(getString(R.string.pref_key_spoof_debuggable_build))!! }
+    private val displayColorPref: Preference by lazy { findPreference(getString(R.string.pref_key_display_color))!! }
+    private val uidPermWhitelistPref: Preference by lazy { findPreference(getString(R.string.pref_key_perm_uid_whitelist))!! }
+    private val pkgPermWhitelistPref: Preference by lazy { findPreference(getString(R.string.pref_key_perm_pkg_whitelist))!! }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.root_preferences, rootKey)
@@ -150,35 +156,10 @@ class RootFragment : BasePreferenceFragment() {
             true
         }
 
-        systemListPref.apply {
-            if (!isSystemServer) {
-                summary = getString(R.string.system_server_only_feature)
-                isEnabled = false
-            } else {
-                summary = getString(R.string.debug_app_list_subtitle)
-                isEnabled = true
-            }
-        }
-
-        certPinningPref.apply {
-            if (!isSystemServer) {
-                summary = getString(R.string.system_server_only_feature)
-                isEnabled = false
-            } else {
-                summary = getString(R.string.cert_pinning_subtitle)
-                isEnabled = true
-            }
-        }
-
-        installSourcePref.apply {
-            if (!isSystemServer) {
-                summary = getString(R.string.system_server_only_feature)
-                isEnabled = false
-            } else {
-                summary = getString(R.string.install_source_subtitle)
-                isEnabled = true
-            }
-        }
+        systemListPref.requiresSystemServer()
+        certPinningPref.requiresSystemServer()
+        installSourcePref.requiresSystemServer()
+        displayColorPref.requiresSystemServer()
 
         multiuserPref.apply {
             if (!isSamsungDevice) {
@@ -213,10 +194,8 @@ class RootFragment : BasePreferenceFragment() {
         }
 
         injectSharedUidKeysPref.apply {
-            if (!isSystemServer) {
-                summary = getString(R.string.system_server_only_feature)
-                isEnabled = false
-            }
+            requiresSystemServer()
+
             onPreferenceClickListener = Preference.OnPreferenceClickListener {
                 SignatureInjector.showDialog(context)
                 true
@@ -240,10 +219,7 @@ class RootFragment : BasePreferenceFragment() {
         }
 
         appDataTransferPref.apply {
-            if (!isSystemServer) {
-                summary = getString(R.string.system_server_only_feature)
-                isEnabled = isSystemServer
-            }
+            requiresSystemServer()
 
             onPreferenceClickListener = Preference.OnPreferenceClickListener {
                 val pkg = "me.timschneeberger.appdatabackup"
@@ -295,6 +271,32 @@ class RootFragment : BasePreferenceFragment() {
             }
         }
 
+        uidPermWhitelistPref.apply {
+            requiresSystemServer()
+
+            onPreferenceClickListener = Preference.OnPreferenceClickListener {
+                context.showInputAlert(
+                    layoutInflater,
+                    title = R.string.perm_whitelist_uid_title,
+                    hint = R.string.perm_whitelist_uid_hint,
+                    value = injectedPreferences.getStringSet("permission_uid_whitelist", emptySet())?.joinToString(",") ?: ""
+                ) { input ->
+                    val set = input.split(',').mapTo(mutableSetOf()) { it.trim() }
+                    if (set.any { it.toIntOrNull() == null }) {
+                        context.showAlert(R.string.error, R.string.perm_whitelist_uid_invalid)
+                        return@showInputAlert
+                    }
+
+                    injectedPreferences.edit(commit = true) { putStringSet("permission_uid_whitelist", set) }
+                    Mods.applyPermissionWhitelist()
+                    refreshPermWhitelist()
+                }
+                true
+            }
+        }
+
+        pkgPermWhitelistPref.requiresSystemServer()
+
         refreshInfo()
         refreshShizukuPref()
         refreshShizukuAutostartPref()
@@ -302,6 +304,17 @@ class RootFragment : BasePreferenceFragment() {
         refreshMultiuserPref()
         refreshDocumentsProviderPref()
         refreshSpoofDebuggablePref()
+        refreshPermWhitelist()
+    }
+
+    fun Preference.requiresSystemServer(ifAvailable: () -> Unit = {}) {
+        if (!isSystemServer) {
+            summary = getString(R.string.system_server_only_feature)
+            isEnabled = false
+        } else {
+            isEnabled = true
+            ifAvailable()
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -337,6 +350,22 @@ class RootFragment : BasePreferenceFragment() {
         refreshMultiuserPref()
         refreshDocumentsProviderPref()
         refreshSpoofDebuggablePref()
+        refreshPermWhitelist()
+    }
+
+    private fun refreshPermWhitelist() {
+        uidPermWhitelistPref.summary = injectedPreferences
+            .getStringSet("permission_uid_whitelist", emptySet())
+            ?.joinToString(", ")
+            .let {
+                if (it.isNullOrEmpty()) getString(R.string.none) else it
+            }
+        pkgPermWhitelistPref.summary = injectedPreferences
+            .getStringSet("permission_pkg_whitelist", emptySet())
+            ?.joinToString(", ")
+            .let {
+                if (it.isNullOrEmpty()) getString(R.string.none) else it
+            }
     }
 
     private fun refreshSpoofDebuggablePref() {
@@ -402,25 +431,20 @@ class RootFragment : BasePreferenceFragment() {
 
     private fun refreshDexPref() {
         dexPref.apply {
-            if(!isSystemServer) {
-                summary = getString(R.string.system_server_only_feature)
-                isEnabled = false
-                isChecked = false
-                return@apply
-            }
-
-            try {
-                title = getString(R.string.internal_dex_screen_title)
-                summary = if (Mods.forcedInternalDexScreenModeEnabled)
-                    getString(R.string.internal_dex_screen_subtitle_on, Mods.dexDisplayId)
-                else
-                    getString(R.string.internal_dex_screen_subtitle)
-                isEnabled = true
-                isChecked = Mods.forcedInternalDexScreenModeEnabled
-            } catch (e: Exception) {
-                summary = getString(R.string.internal_dex_screen_unsupported)
-                isEnabled = false
-                Log.e(TAG, "refreshDexPref: ", e)
+            requiresSystemServer {
+                try {
+                    title = getString(R.string.internal_dex_screen_title)
+                    summary = if (Mods.forcedInternalDexScreenModeEnabled)
+                        getString(R.string.internal_dex_screen_subtitle_on, Mods.dexDisplayId)
+                    else
+                        getString(R.string.internal_dex_screen_subtitle)
+                    isEnabled = true
+                    isChecked = Mods.forcedInternalDexScreenModeEnabled
+                } catch (e: Exception) {
+                    summary = getString(R.string.internal_dex_screen_unsupported)
+                    isEnabled = false
+                    Log.e(TAG, "refreshDexPref: ", e)
+                }
             }
         }
     }

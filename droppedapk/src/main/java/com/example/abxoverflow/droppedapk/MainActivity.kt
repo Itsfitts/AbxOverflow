@@ -71,6 +71,8 @@ class MainActivity : AppCompatActivity(),
                 .beginTransaction()
                 .replace(R.id.container, fragment)
                 .commit()
+
+            supportActionBar?.title = "${getString(R.string.app_name)} ($currentProcessName)"
         }
         else {
             supportActionBar?.title = savedInstanceState.getString(PERSIST_TITLE)

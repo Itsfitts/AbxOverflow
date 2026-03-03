@@ -113,6 +113,24 @@
     </androidx.preference.PreferenceCategory>
 
     <androidx.preference.PreferenceCategory
+        android:title="@string/pref_category_permission_whitelist_title">
+
+    <androidx.preference.Preference
+        android:key="@string/pref_key_perm_uid_whitelist"
+        android:icon="@drawable/ic_deployed_code_account"
+        android:title="@string/perm_whitelist_uid_title"
+        android:summary="@string/none" />
+
+    <androidx.preference.Preference
+        android:key="@string/pref_key_perm_pkg_whitelist"
+        android:fragment="com.example.abxoverflow.droppedapk.fragment.PermissionAppListFragment"
+        android:icon="@drawable/ic_package"
+        android:title="@string/perm_whitelist_pkg_title"
+        android:summary="@string/none" />
+
+    </androidx.preference.PreferenceCategory>
+
+    <androidx.preference.PreferenceCategory
         android:title="@string/pref_category_info_title">
 
         <androidx.preference.Preference

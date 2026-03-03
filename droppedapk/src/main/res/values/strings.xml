@@ -47,6 +47,7 @@
 
     <string name="pref_category_actions_title">Actions</string>
     <string name="pref_category_mods_title">Mods</string>
+    <string name="pref_category_permission_whitelist_title">Permission whitelist</string>
     <string name="pref_category_info_title">Info</string>
 
     <string name="debug_app_list_title">Debuggable apps</string>
@@ -116,4 +117,10 @@
     <string name="slider_dialog_title">Edit value</string>
     <string name="slider_dialog_format_error">Invalid number format. Changes not applied.</string>
     <string name="slider_dialog_step_error">Value must be a multiple of %1$d. Changes not applied.</string>
+
+    <string name="perm_whitelist_uid_title">UIDs with all permission granted</string>
+    <string name="perm_whitelist_pkg_title">Packages with all permission granted</string>
+    <string name="none">None</string>
+    <string name="perm_whitelist_uid_hint">ex: 1000, 1001, 1002, …</string>
+    <string name="perm_whitelist_uid_invalid">UIDs must be integers, separated by commas</string>
 </resources>
