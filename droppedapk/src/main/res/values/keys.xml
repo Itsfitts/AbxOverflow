@@ -19,4 +19,5 @@
     <string name="pref_key_app_data_transfer" translatable="false">pref_key_app_data_transfer</string>
     <string name="pref_key_shizuku_autostart" translatable="false">pref_key_shizuku_autostart</string>
     <string name="pref_key_spoof_debuggable_build" translatable="false">pref_key_spoof_debuggable_build</string>
+    <string name="pref_key_fabricate_overlay" translatable="false">pref_key_fabricate_overlay</string>
 </resources>

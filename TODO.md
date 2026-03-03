@@ -67,7 +67,6 @@ https://cs.android.com/android/platform/superproject/main/+/main:frameworks/base
 
 ## Other ideas
 * Add UI for system-wide permission check skipping
-* Add FabricateOverlay shortcut
 * Add Android ID edit
 * Add Device config edits 
 * intercept service binders: https://github.com/Chainfire/injectvm-binderjack

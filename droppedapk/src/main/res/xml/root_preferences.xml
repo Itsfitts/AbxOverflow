@@ -35,6 +35,12 @@
             android:title="@string/app_data_transfer_title"
             android:summary="@string/app_data_transfer_subtitle" />
 
+        <androidx.preference.Preference
+            android:key="@string/pref_key_fabricate_overlay"
+            android:icon="@drawable/ic_filter_none"
+            android:title="@string/fabricate_overlay_title"
+            android:summary="@string/fabricate_overlay_subtitle" />
+
     </androidx.preference.PreferenceCategory>
 
     <androidx.preference.PreferenceCategory

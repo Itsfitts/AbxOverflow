@@ -82,6 +82,10 @@
     <string name="app_data_transfer_app_missing">Required app not installed. See https://github.com/timschneeb/debuggable-app-data-backup</string>
     <string name="app_data_loading_list">Loading run-as/debuggable apps…</string>
 
+    <string name="fabricate_overlay_title">Fabricated overlay manager</string>
+    <string name="fabricate_overlay_subtitle">Launch FabricateOverlay overlay manager</string>
+    <string name="fabricate_overlay_missing_message">FabricateOverlay is not installed on this device. Open the GitHub page for installation?</string>
+
     <string name="shizuku_autostart_title">Auto-start Shizuku on boot</string>
     <string name="shizuku_autostart_subtitle">Start Shizuku as the current user after boot</string>
     <string name="shizuku_permission_not_granted">Shizuku permission not granted. Try again after granting</string>

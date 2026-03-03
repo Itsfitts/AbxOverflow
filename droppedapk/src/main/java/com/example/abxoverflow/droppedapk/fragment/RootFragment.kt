@@ -13,6 +13,7 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import androidx.core.net.toUri
 import androidx.core.view.MenuProvider
 import androidx.lifecycle.Lifecycle
 import androidx.preference.Preference
@@ -53,6 +54,7 @@ class RootFragment : BasePreferenceFragment() {
     private val systemListPref: Preference by lazy { findPreference(getString(R.string.pref_key_debug_app_list))!! }
     private val certPinningPref: Preference by lazy { findPreference(getString(R.string.pref_key_cert_pinning))!! }
     private val appDataTransferPref: Preference by lazy { findPreference(getString(R.string.pref_key_app_data_transfer))!! }
+    private val fabricateOverlayPref: Preference by lazy { findPreference(getString(R.string.pref_key_fabricate_overlay))!! }
     private val installSourcePref: Preference by lazy { findPreference(getString(R.string.pref_key_install_source))!! }
     private val infoPref: Preference by lazy { findPreference(getString(R.string.pref_key_info))!! }
     private val infoIdPref: Preference by lazy { findPreference(getString(R.string.pref_key_id_info))!! }
@@ -273,6 +275,25 @@ class RootFragment : BasePreferenceFragment() {
             }
         }
 
+        // FabricateOverlay launcher
+        fabricateOverlayPref.apply {
+            onPreferenceClickListener = Preference.OnPreferenceClickListener {
+                val pkg = "tk.zwander.fabricateoverlay"
+                requireContext().packageManager.getLaunchIntentForPackage(pkg)?.let {
+                    it.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    startActivity(it)
+                } ?: run {
+                    requireContext().showConfirmDialog(
+                        getString(R.string.fabricate_overlay_title),
+                        getString(R.string.fabricate_overlay_missing_message)
+                    ) {
+                        startActivity(Intent(Intent.ACTION_VIEW,
+                            "https://github.com/timschneeb/FabricateOverlay".toUri()))
+                    }
+                }
+                true
+            }
+        }
 
         refreshInfo()
         refreshShizukuPref()
