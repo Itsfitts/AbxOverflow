@@ -47,6 +47,7 @@
 
     <string name="pref_category_actions_title">Actions</string>
     <string name="pref_category_mods_title">Mods</string>
+    <string name="pref_category_permission_whitelist_title">Permission whitelist</string>
     <string name="pref_category_info_title">Info</string>
 
     <string name="debug_app_list_title">Debuggable apps</string>
@@ -82,6 +83,10 @@
     <string name="app_data_transfer_app_missing">Required app not installed. See https://github.com/timschneeb/debuggable-app-data-backup</string>
     <string name="app_data_loading_list">Loading run-as/debuggable apps…</string>
 
+    <string name="fabricate_overlay_title">Fabricated overlay manager</string>
+    <string name="fabricate_overlay_subtitle">Launch FabricateOverlay overlay manager</string>
+    <string name="fabricate_overlay_missing_message">FabricateOverlay is not installed on this device. Open the GitHub page for installation?</string>
+
     <string name="shizuku_autostart_title">Auto-start Shizuku on boot</string>
     <string name="shizuku_autostart_subtitle">Start Shizuku as the current user after boot</string>
     <string name="shizuku_permission_not_granted">Shizuku permission not granted. Try again after granting</string>
@@ -98,4 +103,24 @@
     <string name="app_filter_system_only">System only</string>
     <string name="app_filter_user_only">User only</string>
 
+    <string name="spoof_debuggable_build_title">Spoof debuggable build</string>
+    <string name="spoof_debuggable_build_subtitle">Force enable Build.IS_DEBUGGABLE within this process (does not persist)"</string>
+    <string name="spoof_debuggable_build_subtitle_system_server">Allows downgrades, unlocks all compat flags in developer settings"</string>
+    <string name="spoof_debuggable_build_subtitle_settings">Unlocks compat flags for all apps and feature flags in the developer settings"</string>
+
+    <string name="display_saturation_title">Display saturation</string>
+    <string name="display_saturation_subtitle">Change saturation and color mode</string>
+    <string name="display_color_override_native">Native color management</string>
+    <string name="display_color_override_native_subtitle">Use OEM display color settings</string>
+    <string name="display_color_saturation">Saturation level</string>
+
+    <string name="slider_dialog_title">Edit value</string>
+    <string name="slider_dialog_format_error">Invalid number format. Changes not applied.</string>
+    <string name="slider_dialog_step_error">Value must be a multiple of %1$d. Changes not applied.</string>
+
+    <string name="perm_whitelist_uid_title">UIDs with all permission granted</string>
+    <string name="perm_whitelist_pkg_title">Packages with all permission granted</string>
+    <string name="none">None</string>
+    <string name="perm_whitelist_uid_hint">ex: 1000, 1001, 1002, …</string>
+    <string name="perm_whitelist_uid_invalid">UIDs must be integers, separated by commas</string>
 </resources>

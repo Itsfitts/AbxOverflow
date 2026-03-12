@@ -4,22 +4,76 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Parcel
 import android.os.ServiceManager
+import android.os.SystemProperties
 import android.util.Log
+import android.view.SurfaceControl
+import com.example.abxoverflow.droppedapk.utils.injectedPreferences
 import com.example.abxoverflow.droppedapk.utils.readToString
 import com.example.abxoverflow.droppedapk.utils.toast
+import dalvik.system.BaseDexClassLoader
+import io.github.kyuubiran.ezxhelper.core.finder.MethodFinder.`-Static`.methodFinder
+import me.timschneeberger.reflectionexplorer.utils.reflection.setField
 import java.io.File
 import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 import java.util.Objects
 import java.util.function.BiFunction
 
+
 @SuppressLint("PrivateApi")
 object Mods {
+    @SuppressLint("SoonBlockedPrivateApi")
+    private fun testOverride() {
+        setField(SurfaceControl::class.java.getDeclaredField("SECURE"), 0)
+
+
+
+
+        val myLoader = Mods.javaClass.classLoader!! as BaseDexClassLoader
+        Log.e(TAG, "My classloader: " + myLoader)
+
+        BaseDexClassLoader::class.java.methodFinder()
+            .filterByName("addDexPath")
+            .filterByParamTypes(String::class.java)
+            .first()
+            .invoke(myLoader, "/system/framework/services.jar")
+        // TODO: this causes confusion in ReflectionExplorer's static field scanner in non-system_serverbuilds!
+
+        Log.e(TAG, "Added services.jar to classloader: " + myLoader)
+
+        val loaded = myLoader.loadClass("com.android.server.LocalManagerRegistry")
+        Log.e(TAG, "Loaded class: " + loaded)
+
+        com.android.server.LocalManagerRegistry.addManager(Mods::class.java, "Hello!")
+
+        // Instantiate and invoke Test.test() using reflection so selection is done at runtime
+        try {
+            val testClassName = "com.example.abxoverflow.droppedapk.utils.Test"
+            val cls = Class.forName(testClassName)
+            val ctor = cls.getDeclaredConstructor()
+            ctor.isAccessible = true
+            val instance = ctor.newInstance()
+            val method = cls.getMethod("test")
+            method.invoke(instance)
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to invoke Test.test() via reflection", e)
+        }
+    }
+
     private const val TAG = "DroppedAPK_Mods"
+    private var pkgWhitelist = emptyList<String>()
+    private var uidWhitelist = emptyList<Int>()
 
     fun runAllSystemServer() {
         enablePermissionManagerDelegate()
+        try {
+            // TODO testOverride()
+        } catch (e: Throwable) {
+            Log.e(TAG, "Failed to run test", e)
+        }
     }
 
     /**
@@ -60,6 +114,20 @@ object Mods {
         }
     }
 
+    fun applyPermissionWhitelist() {
+        pkgWhitelist = injectedPreferences.getStringSet("permission_pkg_whitelist", emptySet())?.let {
+            listOf("com.android.shell", "moe.shizuku.privileged.api") + it
+        } ?: emptyList()
+        uidWhitelist = injectedPreferences.getStringSet("permission_uid_whitelist", emptySet())?.let {
+            it.mapNotNull(String::toIntOrNull) + listOf(
+                1000,
+                1001 // Required for Shizuku on 1001
+            )
+        } ?: emptyList()
+
+        Log.i(TAG, "Updated permission whitelist: pkg=$pkgWhitelist, uid=$uidWhitelist")
+    }
+
     fun enablePermissionManagerDelegate() {
         try {
             val serviceImpl = ServiceManager.getService("permissionmgr")
@@ -74,15 +142,14 @@ object Mods {
             val delegateCls = Class.forName(innerBinaryName, false, svcLoader)
             Log.i(TAG, "Found CheckPermissionDelegate via service classloader: " + delegateCls.getName())
 
+            applyPermissionWhitelist()
+
             var delegateInstance: Any? = null
             if (delegateCls.isInterface) {
                 delegateInstance = Proxy.newProxyInstance(
                     svcLoader, arrayOf<Class<*>?>(delegateCls)
                 ) { proxy: Any?, method: Method?, args: Array<Any?>? ->
-                    if (method!!.name == "checkPermission" && !(args!![0] as String).let {
-                        it != "com.android.shell" && it != "moe.shizuku.privileged.api"
-                        }
-                    ) {
+                    if (method!!.name == "checkPermission" && !pkgWhitelist.contains(args!![0] as String)) {
                         // Forward to TriFunction.apply(Object, Object, Integer)
                         // -> Default code path for other apps
                         val triCls =
@@ -100,14 +167,8 @@ object Mods {
                             args[2] as Int?
                         ) as Int)
                     }
-                    val uidWhitelist: MutableList<Int?> = ArrayList()
-                    uidWhitelist.add(1000) // TODO
-                    uidWhitelist.add(1001) // Required for Shizuku on 1001
 
-                    if (method.name == "checkUidPermission" && !uidWhitelist.contains(
-                            args!![0] as Int
-                        )
-                    ) {
+                    if (method.name == "checkUidPermission" && !uidWhitelist.contains(args!![0] as Int)) {
                         // Forward to BiFunction.apply(Object, Object)
                         // -> Default code path for other apps
                         @Suppress("UNCHECKED_CAST")
@@ -117,10 +178,10 @@ object Mods {
                         )
                     }
 
-                    Log.i(
-                        TAG,
-                        method.name + "(" + (args?.contentToString() ?: "") + ") called"
-                    )
+                   /* Log.i(
+                         TAG,
+                         method.name + "(" + (args?.contentToString() ?: "") + ") called"
+                     )*/
 
                     val rt = method.returnType
                     if (rt == Boolean::class.javaPrimitiveType) return@newProxyInstance true
@@ -246,4 +307,44 @@ object Mods {
                 throw RuntimeException(e)
             }
         }
+
+    var isBuildDebuggable: Boolean
+        @SuppressLint("DiscouragedPrivateApi")
+        get() = Build::class.java.getDeclaredField("IS_DEBUGGABLE").getBoolean(null)
+        @SuppressLint("DiscouragedPrivateApi")
+        set(enabled) {
+            setField(Build::class.java.getDeclaredField("IS_DEBUGGABLE"), enabled)
+        }
+
+    var isDisplayNativeMode: Boolean
+        get() = SystemProperties.getInt("persist.sys.sf.native_mode", 0) != 0
+        set(enabled) {
+            callSurfaceFlinger(1023) {
+                writeInt(if(enabled) 1 else 0)
+            }
+            SystemProperties.set("persist.sys.sf.native_mode", if(enabled) "1" else "0")
+        }
+
+    var displaySaturation: Float
+        get() = SystemProperties.get("persist.sys.sf.color_saturation", "1.0").toFloatOrNull() ?: 1.0f
+        set(value) {
+            callSurfaceFlinger(1022) {
+                writeFloat(value)
+            }
+            SystemProperties.set("persist.sys.sf.color_saturation", value.toString())
+        }
+
+    fun callSurfaceFlinger(transactionId: Int, writePayload: Parcel.() -> Unit) {
+        val surfaceFlinger = ServiceManager.getService("SurfaceFlinger") ?: return
+
+        val data = Parcel.obtain()
+        try {
+            data.writeInterfaceToken("android.ui.ISurfaceComposer")
+            data.writePayload()
+            // using IBinder.FLAG_ONEWAY: don't need to block for a reply.
+            surfaceFlinger.transact(transactionId, data, null, 1)
+        } finally {
+            data.recycle()
+        }
+    }
 }

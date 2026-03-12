@@ -1,33 +1,37 @@
 package com.example.abxoverflow.droppedapk
 
+import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.PowerManager
 import android.os.Process
+import android.provider.Settings
 import android.util.Log
 import android.view.MenuItem
 import android.view.ViewGroup
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
+import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
 import com.example.abxoverflow.droppedapk.SystemProcessTrampolineActivity.Companion.EXTRA_EXPLICIT_PROCESS
 import com.example.abxoverflow.droppedapk.SystemProcessTrampolineActivity.Companion.EXTRA_TARGET_INTENT
 import com.example.abxoverflow.droppedapk.SystemProcessTrampolineActivity.Companion.EXTRA_TARGET_UID
 import com.example.abxoverflow.droppedapk.databinding.ActivityMainBinding
-import com.example.abxoverflow.droppedapk.fragment.CertPinningAppListFragment
-import com.example.abxoverflow.droppedapk.fragment.DebugAppListFragment
-import com.example.abxoverflow.droppedapk.fragment.InstallSourceAppListFragment
 import com.example.abxoverflow.droppedapk.fragment.RootFragment
-import com.example.abxoverflow.droppedapk.fragment.TerminalFragment
 import com.example.abxoverflow.droppedapk.utils.currentProcessName
 import com.example.abxoverflow.droppedapk.utils.toast
 import me.timschneeberger.reflectionexplorer.ReflectionExplorer
 import me.timschneeberger.reflectionexplorer.ReflectionExplorer.IActivityLauncher
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(),
+    PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
     private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,9 +63,29 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (savedInstanceState == null) {
-            RootFragment().also {
-                supportFragmentManager.beginTransaction().replace(R.id.container, it).commit()
+            val fragment = RootFragment()
+            @Suppress("DEPRECATION")
+            fragment.setTargetFragment(null, 0)
+
+            supportFragmentManager
+                .beginTransaction()
+                .replace(R.id.container, fragment)
+                .commit()
+
+            supportActionBar?.title = "${getString(R.string.app_name)} ($currentProcessName)"
+        }
+        else {
+            supportActionBar?.title = savedInstanceState.getString(PERSIST_TITLE)
+        }
+
+        supportFragmentManager.addOnBackStackChangedListener {
+            if (supportFragmentManager.backStackEntryCount == 0) {
+                supportActionBar?.title = "${getString(R.string.app_name)} ($currentProcessName)"
             }
+            else {
+                supportActionBar?.title = supportFragmentManager.getBackStackEntryAt(supportFragmentManager.backStackEntryCount - 1).name
+            }
+            supportActionBar?.setDisplayHomeAsUpEnabled(supportFragmentManager.backStackEntryCount > 0)
         }
 
         binding.toolbar.apply {
@@ -70,28 +94,12 @@ class MainActivity : AppCompatActivity() {
         }
 
         supportActionBar?.setDisplayHomeAsUpEnabled(supportFragmentManager.backStackEntryCount > 0)
-
-        supportFragmentManager.addOnBackStackChangedListener {
-            supportActionBar?.setDisplayHomeAsUpEnabled(
-                supportFragmentManager.backStackEntryCount > 0
-            )
-
-            updateActionBarTitle()
-        }
-
-        updateActionBarTitle()
+        requestDisableBatteryOptimizationsIfNeeded()
     }
 
-    private fun updateActionBarTitle() {
-        val frag = supportFragmentManager.findFragmentById(R.id.container)
-        val title = when (frag) {
-            is TerminalFragment -> getString(R.string.shell_terminal)
-            is DebugAppListFragment -> getString(R.string.debug_app_list_title)
-            is CertPinningAppListFragment -> getString(R.string.cert_pinning_title)
-            is InstallSourceAppListFragment -> getString(R.string.install_source_title)
-            else -> "${getString(R.string.app_name)} ($currentProcessName)"
-        }
-        supportActionBar?.title = title
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(PERSIST_TITLE, supportActionBar?.title.toString())
+        super.onSaveInstanceState(outState)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -109,9 +117,55 @@ class MainActivity : AppCompatActivity() {
         ReflectionExplorer.activityLauncher = null
     }
 
+    override fun onPreferenceStartFragment(caller: PreferenceFragmentCompat, pref: Preference): Boolean {
+        // Instantiate the new Fragment
+        val args = pref.extras
+        val fragment = pref.fragment?.let {
+            supportFragmentManager.fragmentFactory.instantiate(
+                classLoader,
+                it)
+        }
+        fragment ?: return false
+
+        fragment.arguments = args
+        @Suppress("DEPRECATION")
+        fragment.setTargetFragment(caller, 0)
+
+        // Replace the existing Fragment with the new Fragment
+        supportFragmentManager.beginTransaction()
+            .setReorderingAllowed(true)
+            .replace(R.id.container, fragment)
+            .addToBackStack(pref.title.toString())
+            .commit()
+        return true
+    }
+
+    /**
+     * Check whether the app is already whitelisted from battery optimizations and, if not,
+     * launch the system dialog to request the user to add the app to the whitelist.
+     */
+    @SuppressLint("BatteryLife")
+    private fun requestDisableBatteryOptimizationsIfNeeded() {
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        val isIgnoring = pm.isIgnoringBatteryOptimizations(packageName)
+
+        if (!isIgnoring) {
+            try {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = "package:$packageName".toUri()
+                }
+                startActivity(intent)
+            } catch (_: ActivityNotFoundException) {
+                // Fallback to the general battery optimization settings screen
+                startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            }
+        }
+    }
+
     companion object {
         private const val TAG = "DroppedAPK"
 
+        private const val PERSIST_TITLE = "title"
         private const val EXTRA_ATTACH_FRIDA_GADGET = "com.example.abxoverflow.droppedapk.extra.ATTACH_FRIDA_GADGET"
 
         fun startActivityWithProcess(context: Context, intent: Intent) {

@@ -13,6 +13,8 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.core.view.MenuProvider
 import androidx.lifecycle.Lifecycle
 import androidx.preference.Preference
@@ -33,12 +35,14 @@ import com.example.abxoverflow.droppedapk.utils.createProgressDialog
 import com.example.abxoverflow.droppedapk.utils.currentProcessName
 import com.example.abxoverflow.droppedapk.utils.executeShell
 import com.example.abxoverflow.droppedapk.utils.executeShellCatching
+import com.example.abxoverflow.droppedapk.utils.injectedPreferences
 import com.example.abxoverflow.droppedapk.utils.isSamsungDevice
 import com.example.abxoverflow.droppedapk.utils.isSystemServer
 import com.example.abxoverflow.droppedapk.utils.packageSeInfo
 import com.example.abxoverflow.droppedapk.utils.seInfo
 import com.example.abxoverflow.droppedapk.utils.showAlert
 import com.example.abxoverflow.droppedapk.utils.showConfirmDialog
+import com.example.abxoverflow.droppedapk.utils.showInputAlert
 import com.example.abxoverflow.droppedapk.utils.toast
 import me.timschneeberger.reflectionexplorer.ReflectionExplorer
 import me.timschneeberger.reflectionexplorer.ReflectionExplorer.launch
@@ -53,6 +57,7 @@ class RootFragment : BasePreferenceFragment() {
     private val systemListPref: Preference by lazy { findPreference(getString(R.string.pref_key_debug_app_list))!! }
     private val certPinningPref: Preference by lazy { findPreference(getString(R.string.pref_key_cert_pinning))!! }
     private val appDataTransferPref: Preference by lazy { findPreference(getString(R.string.pref_key_app_data_transfer))!! }
+    private val fabricateOverlayPref: Preference by lazy { findPreference(getString(R.string.pref_key_fabricate_overlay))!! }
     private val installSourcePref: Preference by lazy { findPreference(getString(R.string.pref_key_install_source))!! }
     private val infoPref: Preference by lazy { findPreference(getString(R.string.pref_key_info))!! }
     private val infoIdPref: Preference by lazy { findPreference(getString(R.string.pref_key_id_info))!! }
@@ -60,17 +65,13 @@ class RootFragment : BasePreferenceFragment() {
     private val injectSharedUidKeysPref: Preference by lazy { findPreference(getString(R.string.pref_key_inject_shared_uid_keyset))!! }
     private val documentsProviderPref: MaterialSwitchPreference by lazy { findPreference(getString(R.string.pref_key_documents_provider))!! }
     private val shizukuAutostartPref: MaterialSwitchPreference by lazy { findPreference(getString(R.string.pref_key_shizuku_autostart))!! }
+    private val spoofDebuggablePref: MaterialSwitchPreference by lazy { findPreference(getString(R.string.pref_key_spoof_debuggable_build))!! }
+    private val displayColorPref: Preference by lazy { findPreference(getString(R.string.pref_key_display_color))!! }
+    private val uidPermWhitelistPref: Preference by lazy { findPreference(getString(R.string.pref_key_perm_uid_whitelist))!! }
+    private val pkgPermWhitelistPref: Preference by lazy { findPreference(getString(R.string.pref_key_perm_pkg_whitelist))!! }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.root_preferences, rootKey)
-
-        shellPref.setOnPreferenceClickListener {
-            parentFragmentManager.beginTransaction()
-                .replace(R.id.container, TerminalFragment())
-                .addToBackStack("terminal")
-                .commit()
-            true
-        }
 
         reflPref.setOnPreferenceClickListener {
             Log.e(TAG, "Launching Reflection Explorer into current process")
@@ -82,6 +83,19 @@ class RootFragment : BasePreferenceFragment() {
         shizukuPref.setOnPreferenceClickListener {
             Mods.startShizuku(requireContext())
             refreshShizukuPref()
+            true
+        }
+
+        // Spoof Build.DEBUGGABLE within this process
+        spoofDebuggablePref.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, value ->
+            try {
+                Mods.isBuildDebuggable = value as Boolean
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to toggle spoof debuggable build", e)
+                requireContext().showAlert(e)
+            }
+
+            refreshSpoofDebuggablePref()
             true
         }
 
@@ -142,59 +156,10 @@ class RootFragment : BasePreferenceFragment() {
             true
         }
 
-        systemListPref.apply {
-            setOnPreferenceClickListener {
-                parentFragmentManager.beginTransaction()
-                    .replace(R.id.container, DebugAppListFragment())
-                    .addToBackStack("system_app_list")
-                    .commit()
-                true
-            }
-
-            if (!isSystemServer) {
-                summary = getString(R.string.system_server_only_feature)
-                isEnabled = false
-            } else {
-                summary = getString(R.string.debug_app_list_subtitle)
-                isEnabled = true
-            }
-        }
-
-        certPinningPref.apply {
-            setOnPreferenceClickListener {
-                parentFragmentManager.beginTransaction()
-                    .replace(R.id.container, CertPinningAppListFragment())
-                    .addToBackStack("cert_pinning")
-                    .commit()
-                true
-            }
-
-            if (!isSystemServer) {
-                summary = getString(R.string.system_server_only_feature)
-                isEnabled = false
-            } else {
-                summary = getString(R.string.cert_pinning_subtitle)
-                isEnabled = true
-            }
-        }
-
-        installSourcePref.apply {
-            setOnPreferenceClickListener {
-                parentFragmentManager.beginTransaction()
-                    .replace(R.id.container, InstallSourceAppListFragment())
-                    .addToBackStack("install_source_app_list")
-                    .commit()
-                true
-            }
-
-            if (!isSystemServer) {
-                summary = getString(R.string.system_server_only_feature)
-                isEnabled = false
-            } else {
-                summary = getString(R.string.install_source_subtitle)
-                isEnabled = true
-            }
-        }
+        systemListPref.requiresSystemServer()
+        certPinningPref.requiresSystemServer()
+        installSourcePref.requiresSystemServer()
+        displayColorPref.requiresSystemServer()
 
         multiuserPref.apply {
             if (!isSamsungDevice) {
@@ -229,10 +194,8 @@ class RootFragment : BasePreferenceFragment() {
         }
 
         injectSharedUidKeysPref.apply {
-            if (!isSystemServer) {
-                summary = getString(R.string.system_server_only_feature)
-                isEnabled = false
-            }
+            requiresSystemServer()
+
             onPreferenceClickListener = Preference.OnPreferenceClickListener {
                 SignatureInjector.showDialog(context)
                 true
@@ -256,10 +219,7 @@ class RootFragment : BasePreferenceFragment() {
         }
 
         appDataTransferPref.apply {
-            if (!isSystemServer) {
-                summary = getString(R.string.system_server_only_feature)
-                isEnabled = isSystemServer
-            }
+            requiresSystemServer()
 
             onPreferenceClickListener = Preference.OnPreferenceClickListener {
                 val pkg = "me.timschneeberger.appdatabackup"
@@ -291,6 +251,51 @@ class RootFragment : BasePreferenceFragment() {
             }
         }
 
+        // FabricateOverlay launcher
+        fabricateOverlayPref.apply {
+            onPreferenceClickListener = Preference.OnPreferenceClickListener {
+                val pkg = "tk.zwander.fabricateoverlay"
+                requireContext().packageManager.getLaunchIntentForPackage(pkg)?.let {
+                    it.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    startActivity(it)
+                } ?: run {
+                    requireContext().showConfirmDialog(
+                        getString(R.string.fabricate_overlay_title),
+                        getString(R.string.fabricate_overlay_missing_message)
+                    ) {
+                        startActivity(Intent(Intent.ACTION_VIEW,
+                            "https://github.com/timschneeb/FabricateOverlay".toUri()))
+                    }
+                }
+                true
+            }
+        }
+
+        uidPermWhitelistPref.apply {
+            requiresSystemServer()
+
+            onPreferenceClickListener = Preference.OnPreferenceClickListener {
+                context.showInputAlert(
+                    layoutInflater,
+                    title = R.string.perm_whitelist_uid_title,
+                    hint = R.string.perm_whitelist_uid_hint,
+                    value = injectedPreferences.getStringSet("permission_uid_whitelist", emptySet())?.joinToString(",") ?: ""
+                ) { input ->
+                    val set = input.split(',').mapTo(mutableSetOf()) { it.trim() }
+                    if (set.any { it.toIntOrNull() == null }) {
+                        context.showAlert(R.string.error, R.string.perm_whitelist_uid_invalid)
+                        return@showInputAlert
+                    }
+
+                    injectedPreferences.edit(commit = true) { putStringSet("permission_uid_whitelist", set) }
+                    Mods.applyPermissionWhitelist()
+                    refreshPermWhitelist()
+                }
+                true
+            }
+        }
+
+        pkgPermWhitelistPref.requiresSystemServer()
 
         refreshInfo()
         refreshShizukuPref()
@@ -298,6 +303,18 @@ class RootFragment : BasePreferenceFragment() {
         refreshDexPref()
         refreshMultiuserPref()
         refreshDocumentsProviderPref()
+        refreshSpoofDebuggablePref()
+        refreshPermWhitelist()
+    }
+
+    fun Preference.requiresSystemServer(ifAvailable: () -> Unit = {}) {
+        if (!isSystemServer) {
+            summary = getString(R.string.system_server_only_feature)
+            isEnabled = false
+        } else {
+            isEnabled = true
+            ifAvailable()
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -332,6 +349,46 @@ class RootFragment : BasePreferenceFragment() {
         refreshInfo()
         refreshMultiuserPref()
         refreshDocumentsProviderPref()
+        refreshSpoofDebuggablePref()
+        refreshPermWhitelist()
+    }
+
+    private fun refreshPermWhitelist() {
+        uidPermWhitelistPref.summary = injectedPreferences
+            .getStringSet("permission_uid_whitelist", emptySet())
+            ?.joinToString(", ")
+            .let {
+                if (it.isNullOrEmpty()) getString(R.string.none) else it
+            }
+        pkgPermWhitelistPref.summary = injectedPreferences
+            .getStringSet("permission_pkg_whitelist", emptySet())
+            ?.joinToString(", ")
+            .let {
+                if (it.isNullOrEmpty()) getString(R.string.none) else it
+            }
+    }
+
+    private fun refreshSpoofDebuggablePref() {
+        try {
+            spoofDebuggablePref.apply {
+                isChecked = Mods.isBuildDebuggable
+                isEnabled = true
+                summary = getString(
+                    if (isSystemServer)
+                        R.string.spoof_debuggable_build_subtitle_system_server
+                    else if (currentProcessName == "com.android.settings")
+                        R.string.spoof_debuggable_build_subtitle_settings
+                    else
+                        R.string.spoof_debuggable_build_subtitle
+                )
+            }
+        } catch (e: Exception) {
+            spoofDebuggablePref.apply {
+                isEnabled = false
+                summary = e.message
+            }
+            Log.e(TAG, "refreshSpoofDebuggablePref: ", e)
+        }
     }
 
     private fun refreshMultiuserPref() {
@@ -374,25 +431,20 @@ class RootFragment : BasePreferenceFragment() {
 
     private fun refreshDexPref() {
         dexPref.apply {
-            if(!isSystemServer) {
-                summary = getString(R.string.system_server_only_feature)
-                isEnabled = false
-                isChecked = false
-                return@apply
-            }
-
-            try {
-                title = getString(R.string.internal_dex_screen_title)
-                summary = if (Mods.forcedInternalDexScreenModeEnabled)
-                    getString(R.string.internal_dex_screen_subtitle_on, Mods.dexDisplayId)
-                else
-                    getString(R.string.internal_dex_screen_subtitle)
-                isEnabled = true
-                isChecked = Mods.forcedInternalDexScreenModeEnabled
-            } catch (e: Exception) {
-                summary = getString(R.string.internal_dex_screen_unsupported)
-                isEnabled = false
-                Log.e(TAG, "refreshDexPref: ", e)
+            requiresSystemServer {
+                try {
+                    title = getString(R.string.internal_dex_screen_title)
+                    summary = if (Mods.forcedInternalDexScreenModeEnabled)
+                        getString(R.string.internal_dex_screen_subtitle_on, Mods.dexDisplayId)
+                    else
+                        getString(R.string.internal_dex_screen_subtitle)
+                    isEnabled = true
+                    isChecked = Mods.forcedInternalDexScreenModeEnabled
+                } catch (e: Exception) {
+                    summary = getString(R.string.internal_dex_screen_unsupported)
+                    isEnabled = false
+                    Log.e(TAG, "refreshDexPref: ", e)
+                }
             }
         }
     }
